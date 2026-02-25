@@ -1,0 +1,514 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PAAS Backend API",
+    "version": "1.0.0",
+    "description": "REST API for managing Redis PaaS product instances on a STACKIT SKE cluster."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "operationId": "registerUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or missing fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error during registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/instances": {
+      "get": {
+        "summary": "List Redis instances",
+        "operationId": "listInstances",
+        "responses": {
+          "200": {
+            "description": "List of Redis instances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListInstancesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to list instances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a Redis instance",
+        "operationId": "createInstance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Instance created successfully (provisioning started)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedisInstance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to create instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/instances/{id}": {
+      "patch": {
+        "summary": "Update a Redis instance (partial)",
+        "operationId": "updateInstance",
+        "description": "Partially update an existing Redis instance. Only provided fields are applied. At least one of redisReplicas or sentinelReplicas must be provided.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Name/ID of the Redis instance (RedisFailover name)"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "default"
+            },
+            "description": "Kubernetes namespace of the RedisFailover; defaults to \"default\" if omitted"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instance updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "instance updated successfully"
+                    },
+                    "instance": {
+                      "$ref": "#/components/schemas/RedisInstance"
+                    }
+                  },
+                  "required": ["message", "instance"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body or validation (e.g. replicas must be > 0, or provide at least one field to update)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to update instance or get connection info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a Redis instance",
+        "operationId": "deleteInstance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Name/ID of the Redis instance (RedisFailover name)"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "Optional namespace override (defaults to \"default\" if omitted or invalid body)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instance deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "instance deleted succesfully"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["message", "id"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid ID/namespace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to delete instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HelloResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Hello World"
+          }
+        },
+        "required": ["message"]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "It's healthy"
+          }
+        },
+        "required": ["message"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Hashed password"
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "email", "password", "is_admin", "created_at", "updated_at"]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        },
+        "required": ["email", "password"]
+      },
+      "RegisterResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "user registered successfully"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": ["message", "user"]
+      },
+      "RedisInstance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string",
+            "example": "default"
+          },
+          "redisReplicas": {
+            "type": "integer",
+            "example": 3
+          },
+          "sentinelReplicas": {
+            "type": "integer",
+            "example": 3
+          },
+          "status": {
+            "type": "string",
+            "example": "PROVISIONING"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "namespace",
+          "redisReplicas",
+          "sentinelReplicas",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Optional name for the RedisFailover resource; if omitted, a name is generated."
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace for the RedisFailover",
+            "example": "default"
+          },
+          "redisReplicas": {
+            "type": "integer",
+            "description": "Number of Redis replicas (defaults to 3 if <= 0)"
+          },
+          "sentinelReplicas": {
+            "type": "integer",
+            "description": "Number of Sentinel replicas (defaults to 3 if <= 0)"
+          }
+        },
+        "required": ["redisReplicas", "sentinelReplicas"]
+      },
+      "UpdateInstanceRequest": {
+        "type": "object",
+        "description": "Partial update for PATCH /api/instances/:id. All fields are optional; only provided fields are applied. At least one of redisReplicas or sentinelReplicas must be provided.",
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace where the instance lives (used to locate the resource; defaults to query param or \"default\")",
+            "example": "default"
+          },
+          "redisReplicas": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of Redis replicas to set"
+          },
+          "sentinelReplicas": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of Sentinel replicas to set"
+          }
+        }
+      },
+      "DeleteInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace of the RedisFailover; defaults to \"default\" if omitted or invalid body",
+            "example": "default"
+          }
+        }
+      },
+      "ListInstancesResponse": {
+        "type": "object",
+        "properties": {
+          "instances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RedisInstance"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "example": 1
+          }
+        },
+        "required": ["instances", "count"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+@import './base.css';
+
+/* Bootstrap theme overrides - PAAS Level 3 palette */
+:root {
+  --bs-primary: #004b93;
+  --bs-primary-rgb: 0, 75, 147;
+  --bs-secondary: #d82c20;
+  --bs-secondary-rgb: 216, 44, 32;
+  --bs-success: #28a745;
+  --bs-success-rgb: 40, 167, 69;
+}
+
+body {
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #212529 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  font-weight: normal;
+  background-color: #f8f9fa;
+}
+
+#app .content-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Redis accent utility for secondary (Redis Red) */
+.redis-accent {
+  color: #d82c20;
+}

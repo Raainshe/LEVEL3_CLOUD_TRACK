@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: paas-backend
+  namespace: default
+  labels:
+    app: paas-backend
+spec:
+  type: LoadBalancer
+  selector:
+    app: paas-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paas-frontend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paas-frontend
+  template:
+    metadata:
+      labels:
+        app: paas-frontend
+    spec:
+      serviceAccountName: paas-frontend-sa
+      imagePullSecrets:
+        - name: stackit-regcred
+      containers:
+        - name: paas-frontend
+          image: registry.onstackit.cloud/ryan-paas/paas-frontend:latest
+          imagePullPolicy: Always
+          env:
+            - name: VITE_API_URL
+              value: "https://ryanpaas.stackit.gg/api"
+          ports:
+            - containerPort: 80
