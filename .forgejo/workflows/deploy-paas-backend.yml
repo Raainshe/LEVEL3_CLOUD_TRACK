@@ -1,0 +1,36 @@
+name: Deploy PAAS Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'PAAS/backend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: stackit-docker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to StackIt Container Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.onstackit.cloud -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Build and push backend
+        run: |
+          docker build -t registry.onstackit.cloud/ryan-paas/paas-backend:latest -f PAAS/backend/Containerfile PAAS/backend
+          docker push registry.onstackit.cloud/ryan-paas/paas-backend:latest
+
+      - name: Install kubectl
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Setup kubeconfig and rollout restart backend
+        run: |
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG="$(pwd)/kubeconfig.yaml"
+          kubectl rollout restart deployment/paas-backend -n default

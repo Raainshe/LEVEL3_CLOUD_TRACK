@@ -1,0 +1,109 @@
+name: Deploy PAAS Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'PAAS/frontend/**'
+  workflow_dispatch:
+
+jobs:
+  # e2e-tests:
+  #   name: Playwright E2E tests (frontend + backend)
+  #   runs-on: stackit-docker
+  #   timeout-minutes: 60
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+
+  #     - name: Setup kubeconfig for backend
+  #       run: |
+  #         rm -rf kubeconfig.yaml
+  #         echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > kubeconfig.yaml
+  #         ls -ld kubeconfig.yaml
+
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: '1.23'
+
+  #     - name: Build backend for E2E
+  #       working-directory: PAAS/backend
+  #       run: go build -o api ./cmd/api
+
+  #     - name: Start backend for E2E
+  #       env:
+  #         JWT_SECRET: ${{ secrets.BACKEND_JWT_SECRET }}
+  #         ADMIN_EMAIL: ${{ secrets.BACKEND_ADMIN_EMAIL }}
+  #         ADMIN_PASSWORD: ${{ secrets.BACKEND_ADMIN_PASSWORD }}
+  #       run: |
+  #         export KUBECONFIG_PATH="$(pwd)/kubeconfig.yaml"
+  #         export PORT=8080
+  #         nohup ./PAAS/backend/api >> backend.log 2>&1 &
+  #         echo $! > backend.pid
+
+  #     - name: Wait for backend to respond
+  #       run: |
+  #         for i in $(seq 1 30); do
+  #           if curl -sf http://localhost:8080/ > /dev/null; then
+  #             echo "Backend is up"
+  #             exit 0
+  #           fi
+  #           echo "Waiting for backend... (attempt $i/30)"
+  #           sleep 2
+  #         done
+  #         echo "Backend did not respond."
+  #         if [ -f backend.pid ]; then kill $(cat backend.pid) 2>/dev/null || true; fi
+  #         exit 1
+
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: lts/*
+
+  #     - name: Install frontend dependencies
+  #       working-directory: PAAS/frontend
+  #       run: npm ci
+
+  #     - name: Install Playwright browsers
+  #       working-directory: PAAS/frontend
+  #       run: npx playwright install --with-deps
+
+  #     - name: Run Playwright tests
+  #       working-directory: PAAS/frontend
+  #       env:
+  #         VITE_API_URL: http://localhost:8080
+  #       run: npx playwright test
+
+  #     - name: Stop backend
+  #       if: always()
+  #       run: |
+  #         if [ -f backend.pid ]; then kill $(cat backend.pid) 2>/dev/null || true; fi
+
+  deploy-frontend:
+    runs-on: stackit-docker
+    # needs: e2e-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to StackIt Container Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.onstackit.cloud -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Build and push frontend
+        run: |
+          docker build -t registry.onstackit.cloud/ryan-paas/paas-frontend:latest -f PAAS/frontend/Containerfile PAAS/frontend
+          docker push registry.onstackit.cloud/ryan-paas/paas-frontend:latest
+
+      - name: Install kubectl
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Setup kubeconfig and rollout restart frontend
+        run: |
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG="$(pwd)/kubeconfig.yaml"
+          kubectl rollout restart deployment/paas-frontend -n default
